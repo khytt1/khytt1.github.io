@@ -62,7 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     time.style.fontSize = '0.7em';
                     time.style.color = '#888';
                     time.style.marginLeft = '10px';
-                    time.textContent = msg.timeFormatted || '';
+
+                    // Convert Cloudflare server epoch time into the user's localized time
+                    const localTime = new Date(msg.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    time.textContent = localTime;
 
                     div.appendChild(author);
                     div.appendChild(document.createTextNode(': '));
