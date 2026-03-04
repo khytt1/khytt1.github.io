@@ -1,5 +1,6 @@
-import { auth, db, onAuthStateChanged } from './firebase-config.js';
-import { collection, addDoc, query, orderBy, limit, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { auth, onAuthStateChanged } from './firebase-config.js';
+
+const CHAT_API = "https://khytt-chat.mannycuckington.workers.dev/";
 
 document.addEventListener('DOMContentLoaded', () => {
     const chatMessages = document.getElementById('chatMessages');
@@ -8,8 +9,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatSubmit = document.getElementById('chatSubmit');
 
     let currentUser = null;
+    let autoScroll = true;
 
     if (chatMessages && chatForm) {
+        // Detect manual scrolling so we don't force them down if they are reading history
+        chatMessages.addEventListener('scroll', () => {
+            const isBottom = chatMessages.scrollHeight - chatMessages.scrollTop <= chatMessages.clientHeight + 10;
+            autoScroll = isBottom;
+        });
+
+        // Track authentication via Firebase
         onAuthStateChanged(auth, (user) => {
             currentUser = user;
             if (user) {
@@ -23,64 +32,83 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Query all messages (no limit) and order chronologically
-        const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+        // Function to actually fetch and render the messages from Cloudflare
+        const syncMessages = async () => {
+            try {
+                const response = await fetch(CHAT_API);
+                if (!response.ok) throw new Error("API Offline");
 
-        onSnapshot(q, { includeMetadataChanges: true }, (snapshot) => {
-            const msgs = [];
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                // To handle local writes before they hit the server, we use a future date placeholder
-                // This ensures your own new messages appear at the bottom instantly.
-                const timeStr = data.createdAt ? data.createdAt.toMillis() : Date.now() + 10000;
-                msgs.push({ time: timeStr, ...data, id: doc.id });
-            });
+                const msgs = await response.json();
 
-            // Re-enforce chronological sort just in case
-            msgs.sort((a, b) => a.time - b.time);
+                // Cloudflare returns them oldest-to-newest based on how we appended them,
+                // so we just render them exactly as they arrive.
+                chatMessages.innerHTML = '';
 
-            chatMessages.innerHTML = '';
-            msgs.forEach(msg => {
-                const div = document.createElement('div');
-                div.className = 'chat-message';
+                msgs.forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = 'chat-message';
 
-                const author = document.createElement('span');
-                author.className = 'chat-author';
-                author.textContent = msg.displayName ? msg.displayName : (msg.email ? msg.email.split('@')[0] : 'Anonymous');
+                    const author = document.createElement('span');
+                    author.className = 'chat-author';
+                    author.textContent = msg.displayName ? msg.displayName : (msg.email ? msg.email.split('@')[0] : 'Anonymous');
 
-                const text = document.createElement('span');
-                text.className = 'chat-text';
-                text.textContent = msg.text;
+                    const text = document.createElement('span');
+                    text.className = 'chat-text';
+                    text.textContent = msg.text;
 
-                div.appendChild(author);
-                div.appendChild(document.createTextNode(': '));
-                div.appendChild(text);
+                    const time = document.createElement('span');
+                    time.style.fontSize = '0.7em';
+                    time.style.color = '#888';
+                    time.style.marginLeft = '10px';
+                    time.textContent = msg.timeFormatted || '';
 
-                chatMessages.appendChild(div);
-            });
+                    div.appendChild(author);
+                    div.appendChild(document.createTextNode(': '));
+                    div.appendChild(text);
+                    div.appendChild(time);
 
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, (error) => {
-            console.error("Firebase Listener Error: ", error);
-            chatInput.placeholder = "Error connecting to secure server.";
-        });
+                    chatMessages.appendChild(div);
+                });
 
+                if (autoScroll) {
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            } catch (error) {
+                console.error("Cloudflare Chat Error: ", error);
+            }
+        };
+
+        // Poll the server every 2 seconds for new messages
+        syncMessages();
+        setInterval(syncMessages, 2000);
+
+        // Send new message to Cloudflare
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const text = chatInput.value.trim();
+
             if (text && currentUser) {
-                chatInput.value = '';
+                chatInput.value = ''; // Instantly clear UI input
+
                 try {
-                    await addDoc(collection(db, "messages"), {
-                        text: text,
-                        uid: currentUser.uid,
-                        email: currentUser.email,
-                        displayName: currentUser.displayName || null,
-                        createdAt: serverTimestamp()
+                    await fetch(CHAT_API, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            text: text,
+                            uid: currentUser.uid,
+                            email: currentUser.email,
+                            displayName: currentUser.displayName || null
+                        })
                     });
+
+                    // Force an instant re-sync so they see their own message right away
+                    syncMessages();
+                    autoScroll = true;
+
                 } catch (error) {
-                    console.error("Error writing document: ", error);
-                    alert("Message failed to send. Check your Firestore Security Rules.");
+                    console.error("Failed to post message:", error);
+                    alert("Network error: Could not reach chat server.");
                 }
             }
         });
