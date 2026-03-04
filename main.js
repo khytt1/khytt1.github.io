@@ -45,11 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const supportBtns = document.querySelectorAll('#supportBtn');
 
     if (supportModal && closeModal) {
-        supportBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
+        // Ensure all support buttons are active, including dynamically added ones if any
+        document.body.addEventListener('click', (e) => {
+            if (e.target.id === 'supportBtn') {
                 e.preventDefault();
                 supportModal.classList.add('active');
-            });
+            }
         });
 
         closeModal.addEventListener('click', () => {
