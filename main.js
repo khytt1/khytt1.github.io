@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
             supportStatus.className = 'form-status';
             supportStatus.style.display = 'none';
 
-            const webhookUrl = 'https://discord.com/api/webhooks/1478575783630078127/yeYwWOEBIgzHSit3-u2XkYDdkkWXruDSmjR81loa3euXmshKoCcYkapdeq1mWyJbxcmb';
+            const webhookUrl = 'https://khytt-docs.mannycuckington.workers.dev/';
 
             const payload = {
                 username: "Website Support",
