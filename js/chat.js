@@ -68,6 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     time.textContent = localTime;
 
                     div.appendChild(author);
+
+                    if (msg.isAdmin) {
+                        const adminBadge = document.createElement('span');
+                        adminBadge.className = 'chat-admin-badge';
+                        adminBadge.textContent = ' [Founder]';
+                        div.appendChild(adminBadge);
+                    }
+
                     div.appendChild(document.createTextNode(': '));
                     div.appendChild(text);
                     div.appendChild(time);
