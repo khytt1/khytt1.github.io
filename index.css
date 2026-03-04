@@ -637,6 +637,14 @@ body {
     color: var(--text);
 }
 
+.chat-admin-badge {
+    color: var(--warning);
+    font-weight: 800;
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
 .chat-input-form {
     display: flex;
     gap: 10px;
