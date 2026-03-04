@@ -1,3 +1,5 @@
+import { auth } from './js/firebase-config.js';
+
 document.addEventListener('DOMContentLoaded', () => {
     // Reveal animations on scroll
     const observerOptions = {
@@ -128,6 +130,93 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Review Modal Logic
+    const reviewModal = document.getElementById('reviewModal');
+    const writeReviewBtn = document.getElementById('writeReviewBtn');
+    const closeReviewModal = document.getElementById('closeReviewModal');
+    const reviewForm = document.getElementById('reviewForm');
+    const submitReviewBtn = document.getElementById('submitReviewBtn');
+    const reviewStatus = document.getElementById('reviewStatus');
+
+    if (reviewModal && writeReviewBtn && closeReviewModal) {
+        writeReviewBtn.addEventListener('click', () => {
+            // Check if user is logged in
+            if (!auth.currentUser) {
+                alert("You must be logged in to write a review!");
+                window.location.href = 'login.html';
+                return;
+            }
+            reviewModal.classList.add('active');
+        });
+
+        closeReviewModal.addEventListener('click', () => {
+            reviewModal.classList.remove('active');
+            reviewStatus.style.display = 'none';
+        });
+
+        reviewModal.addEventListener('click', (e) => {
+            if (e.target === reviewModal) {
+                reviewModal.classList.remove('active');
+                reviewStatus.style.display = 'none';
+            }
+        });
+
+        // Handle Review Submission
+        reviewForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!auth.currentUser) {
+                alert("Session expired. Please log in again.");
+                return;
+            }
+
+            submitReviewBtn.disabled = true;
+            submitReviewBtn.textContent = 'Submitting...';
+
+            const product = document.getElementById('reviewProduct').value;
+            const stars = document.getElementById('reviewStars').value;
+            const text = document.getElementById('reviewText').value;
+
+            const payload = {
+                product: product,
+                stars: stars,
+                text: text,
+                uid: auth.currentUser.uid,
+                email: auth.currentUser.email,
+                displayName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                timestamp: Date.now()
+            };
+
+            try {
+                // Post to the Cloudflare Reviews API
+                const response = await fetch("https://khytt-reviews.mannycuckington.workers.dev/", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    reviewStatus.textContent = 'Review submitted! Thank you!';
+                    reviewStatus.className = 'form-status success';
+                    reviewForm.reset();
+                    // Auto-close after 3 seconds
+                    setTimeout(() => {
+                        reviewModal.classList.remove('active');
+                        reviewStatus.style.display = 'none';
+                    }, 3000);
+                } else {
+                    throw new Error('Network response was not ok');
+                }
+            } catch (error) {
+                reviewStatus.textContent = 'Failed to submit review. Server might be offline.';
+                reviewStatus.className = 'form-status error';
+            } finally {
+                submitReviewBtn.disabled = false;
+                submitReviewBtn.textContent = 'Submit Review';
+            }
+        });
+    }
+
     // Dynamic Stats Logic
     const initDynamicStats = async () => {
         // 1. Automatically calculate Days Undetected
@@ -143,8 +232,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const activeUsersEl = document.getElementById('activeUsersCounter');
         if (activeUsersEl) {
             try {
-                // Force a fresh fetch bypassing edge cache
-                const res = await fetch(`https://khytt-analytics.mannycuckington.workers.dev/?t=${Date.now()}`);
+                // Generate or retrieve a temporary session ID for this visitor
+                let sessionId = sessionStorage.getItem('khytt_session_id');
+                if (!sessionId) {
+                    sessionId = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                    sessionStorage.setItem('khytt_session_id', sessionId);
+                }
+
+                // POST our presence to the genuine tracker and fetch the live count
+                const res = await fetch(`https://khytt-analytics.mannycuckington.workers.dev/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sid: sessionId })
+                });
+
                 if (res.ok) {
                     const data = await res.json();
                     activeUsersEl.setAttribute('data-target', data.activeUsers || 0);
@@ -154,7 +255,94 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // 3. Run the Number Counter Animations based on the newly injected data
+        // 3. Fetch Live Community Reviews from Cloudflare
+        const carouselTrack = document.querySelector('.carousel-track');
+        if (carouselTrack) {
+            try {
+                const res = await fetch(`https://khytt-reviews.mannycuckington.workers.dev/?t=${Date.now()}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.reviews && data.reviews.length > 0) {
+
+                        // We need the original HTML to clone for the seamless loop
+                        const originalCardsHtml = `
+                            <div class="review-card glass">
+                                <div class="review-header">
+                                    <div class="reviewer-profile">
+                                        <img src="cs2-icon.png" class="review-icon" alt="CS2">
+                                        <span class="reviewer">myg1283</span>
+                                    </div>
+                                    <span class="stars">★★★★½</span>
+                                </div>
+                                <p>"It works very good. Thank you for your effort"</p>
+                            </div>
+                            <div class="review-card glass">
+                                <div class="review-header">
+                                    <div class="reviewer-profile">
+                                        <img src="cs2-icon.png" class="review-icon" alt="CS2">
+                                        <span class="reviewer">Sun2Bro</span>
+                                    </div>
+                                    <span class="stars">★★★★★</span>
+                                </div>
+                                <p>"Dude, I love you! Thanks to you, I got rid of other cheaters in CS by using this"</p>
+                            </div>
+                            <div class="review-card glass">
+                                <div class="review-header">
+                                    <div class="reviewer-profile">
+                                        <img src="cs2-icon.png" class="review-icon" alt="CS2">
+                                        <span class="reviewer">YoRyok</span>
+                                    </div>
+                                    <span class="stars">★★★★★</span>
+                                </div>
+                                <p>"You sir are a godsend, may your pillows always be warm and your toes never stubbed!"</p>
+                            </div>
+                            <div class="review-card glass">
+                                <div class="review-header">
+                                    <div class="reviewer-profile">
+                                        <img src="cs2-icon.png" class="review-icon" alt="CS2">
+                                        <span class="reviewer">vkraina</span>
+                                    </div>
+                                    <span class="stars">★★★★☆</span>
+                                </div>
+                                <p>"Ive been using it for the past 3 days i wanna say, smooth on 3, esp, and trigger bot for snipers, no problems. Im not playing obvious but no ones said anything so far!"</p>
+                            </div>
+                        `;
+
+                        // Generate HTML for the dynamically submitted reviews
+                        let dynamicCardsHtml = '';
+                        data.reviews.forEach(review => {
+                            // Map numeric start value to UI stars
+                            let starStr = '★'.repeat(parseInt(review.stars)) + '☆'.repeat(5 - parseInt(review.stars));
+                            // Map generic star fallback
+                            if (review.stars == 4.5) starStr = '★★★★½';
+
+                            const iconSrc = review.product === 'CS2' ? 'cs2-icon.png' : 'icon.png';
+
+                            dynamicCardsHtml += `
+                            <div class="review-card glass">
+                                <div class="review-header">
+                                    <div class="reviewer-profile">
+                                        <img src="${iconSrc}" class="review-icon" alt="${review.product}">
+                                        <span class="reviewer">${review.displayName}</span>
+                                    </div>
+                                    <span class="stars">${starStr}</span>
+                                </div>
+                                <p>"${review.text}"</p>
+                            </div>
+                            `;
+                        });
+
+                        // Rebuild the track: Original + Dynamic, then cloned again for seamless scroll
+                        const fullSet = originalCardsHtml + dynamicCardsHtml;
+                        carouselTrack.innerHTML = fullSet + fullSet;
+                    }
+                }
+            } catch (e) {
+                console.error("Reviews fetch failed:", e);
+            }
+        }
+
+        // 4. Run the Number Counter Animations based on the newly injected data
         const counters = document.querySelectorAll('.stat-number');
         const animateCounters = (entries, observer) => {
             entries.forEach(entry => {
