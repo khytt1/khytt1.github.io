@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://khytt-cheats.vercel.app/sitemap.xml
