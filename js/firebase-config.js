@@ -37,6 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 loginLink.href = "login.html";
             }
 
+            // Handle My Profile link visibility
+            const navProfileLi = document.getElementById('navProfileLi');
+            if (navProfileLi) {
+                navProfileLi.style.display = user ? 'block' : 'none';
+            }
+
             // Handle Download Button Logic globally
             const downloadBtn = document.getElementById('downloadBtn');
             if (downloadBtn) {

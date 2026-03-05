@@ -50,6 +50,36 @@
             </form>
         </div>
     </div>
+    <!-- Chat Modals for Mod Actions -->
+    <div class="modal-overlay" id="muteModal">
+        <div class="modal-content glass">
+            <span class="modal-close" id="closeMuteModal">&times;</span>
+            <form class="support-form" id="muteForm">
+                <h2 id="muteModalTitle">Mute User</h2>
+                <div class="form-group">
+                    <label for="muteDuration">Duration (in minutes)</label>
+                    <input type="number" id="muteDuration" required placeholder="e.g. 60 for 1 hour" min="1">
+                </div>
+                <button type="submit" class="submit-btn" id="submitMuteBtn">Mute User</button>
+                <div id="muteStatus" class="form-status"></div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="banModal">
+        <div class="modal-content glass">
+            <span class="modal-close" id="closeBanModal">&times;</span>
+            <div style="text-align: center;">
+                <h2 id="banModalTitle" style="color: var(--error);">Ban User</h2>
+                <p style="margin-bottom: 20px;">Are you sure you want to permanently ban this user?</p>
+                <button class="submit-btn" id="submitBanBtn"
+                    style="background: rgba(239, 68, 68, 0.2); border-color: var(--error); color: var(--error);">Yes,
+                    Ban User</button>
+                <div id="banStatus" class="form-status"></div>
+            </div>
+        </div>
+    </div>
+
     <script src="main.js"></script>
 </body>
 

@@ -83,11 +83,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Mute Action
                 const muteBtn = document.createElement('button');
                 muteBtn.className = 'action-btn ' + (u.isMuted ? '' : 'danger');
-                muteBtn.textContent = u.isMuted ? 'Unmute' : 'Mute 24h';
-                muteBtn.onclick = () => handleAction('mod/mute', {
-                    targetUid: u.uid,
-                    durationHours: u.isMuted ? 0 : 24
-                });
+                muteBtn.textContent = u.isMuted ? 'Unmute' : 'Mute';
+                muteBtn.onclick = () => {
+                    const durationStr = prompt("Enter mute duration in minutes (0 to unmute):", u.isMuted ? "0" : "60");
+                    if (durationStr === null) return;
+
+                    const durationMins = parseInt(durationStr);
+                    if (isNaN(durationMins) || durationMins < 0) {
+                        alert("Invalid duration");
+                        return;
+                    }
+
+                    handleAction('mod/mute', {
+                        targetUid: u.uid,
+                        durationMinutes: durationMins
+                    }, false); // don't confirm again since we prompted
+                };
                 tdActions.appendChild(muteBtn);
 
                 // Ban Action
@@ -121,8 +132,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    async function handleAction(endpoint, payload) {
-        if (!confirm("Are you sure you want to perform this action?")) return;
+    async function handleAction(endpoint, payload, skipConfirm = false) {
+        if (!skipConfirm && !confirm("Are you sure you want to perform this action?")) return;
 
         try {
             const body = {

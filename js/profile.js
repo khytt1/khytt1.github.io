@@ -24,23 +24,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let currentUser = null;
 
-    if (!targetUid) {
-        loader.classList.add('hidden');
-        errorMsg.textContent = "No user specified.";
-        errorMsg.classList.remove('hidden');
-        return;
-    }
-
-    // Load Profile Data immediately
-    loadProfile(targetUid);
-
-    // Track authentication to see if they can edit
+    // Track authentication to load profile if no UID is specified and to enable editing
     onAuthStateChanged(auth, (user) => {
         currentUser = user;
-        if (user && user.uid === targetUid) {
+
+        // If no targetUid was provided in the URL
+        if (!targetUid) {
+            if (user) {
+                targetUid = user.uid;
+                loadProfile(targetUid);
+            } else {
+                loader.classList.add('hidden');
+                errorMsg.innerHTML = "You must be logged in to view your profile.<br><br><a href='login.html' style='color:var(--primary); text-decoration:none;'>Click here to Log In</a>";
+                errorMsg.classList.remove('hidden');
+            }
+        }
+
+        // If the viewer owns this profile, let them edit it
+        if (user && targetUid === user.uid) {
             editBtn.style.display = 'inline-block';
         }
     });
+
+    if (targetUid) {
+        // Load Profile Data immediately if we got it from the URL
+        loadProfile(targetUid);
+    }
 
     async function loadProfile(uid) {
         try {
