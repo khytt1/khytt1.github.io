@@ -101,10 +101,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     author.textContent = msg.displayName ? msg.displayName : (msg.email ? msg.email.split('@')[0] : 'Anonymous');
                     authorLink.appendChild(author);
 
-                    const isViewerAdminOrMod = currentUser && (currentUserRole === 'admin' || currentUserRole === 'mod' || (currentUser.displayName && currentUser.displayName.toLowerCase() === 'khytt'));
-                    const isViewerAdminOnly = currentUser && (currentUserRole === 'admin' || (currentUser.displayName && currentUser.displayName.toLowerCase() === 'khytt'));
+                    const isTargetKhytt = msg.displayName && msg.displayName.toLowerCase() === 'khytt';
 
-                    if (isViewerAdminOrMod) {
+                    const isViewerAdminOrMod = currentUser && (currentUserRole === 'admin' || currentUserRole === 'mod');
+                    const isViewerAdminOnly = currentUser && (currentUserRole === 'admin');
+
+                    // Don't show mod tools on khytt's messages, UNLESS the viewer is actually khytt (the admin)
+                    if (isViewerAdminOrMod && (!isTargetKhytt || isViewerAdminOnly)) {
                         const deleteBtn = document.createElement('span');
                         deleteBtn.className = 'chat-delete-btn';
                         deleteBtn.innerHTML = ' &times; ';
